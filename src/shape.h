@@ -110,7 +110,7 @@ public:
 
     virtual bool Intersect(const FRay &ray, FIntersection &oisect) const = 0;
 
-    virtual FBounds3 WorldBounds() const = 0;
+	const FBounds3& WorldBounds() const { return worldBox; }
     virtual Float Area() const = 0;
 
 public:
@@ -179,7 +179,7 @@ public:
     }
 
 public:
-    static constexpr Float epsilon = (Float)1e-3;
+	FBounds3 worldBox;
 };
 
 
@@ -191,7 +191,9 @@ public:
         : position(pos)
 		, normal(Normalize(normal))
 		, radius(radius)
-	{}
+	{
+		worldBox = CalcWorldBounds();
+	}
 
     bool Intersect(const FRay& ray, FIntersection& oisect) const override
 	{
@@ -216,7 +218,7 @@ public:
 		return false;
 	}
 
-	FBounds3 WorldBounds() const override
+	FBounds3 CalcWorldBounds() const
 	{
 		FFrame frame(normal);
         FVector3 rb = frame.Binormal() * radius;
@@ -263,6 +265,8 @@ public:
 		normal = Normalize(Cross(p1 - p0, p2 - p0));
 		if (flip_normal)
 			normal = -normal;
+
+		worldBox = CalcWorldBounds();
 	}
 
 	bool Intersect(const FRay& ray, FIntersection& oisect) const override
@@ -303,7 +307,7 @@ public:
 		return false;
 	}
 
-	FBounds3 WorldBounds() const override
+	FBounds3 CalcWorldBounds() const
 	{
 		FBounds3 bbox(p0, p1);
 		bbox = bbox.Join(p2);
@@ -346,6 +350,8 @@ public:
 		normal = Normalize(Cross(p1 - p0, p2 - p0));
 		if (flip_normal)
 			normal = -normal;
+
+		worldBox = CalcWorldBounds();
 	}
 
     static FRectangle FromXY(Float x0, Float x1, Float y0, Float y1, Float z, bool flip_normal = false);
@@ -390,7 +396,7 @@ public:
 		return false;
 	}
 
-	FBounds3 WorldBounds() const override
+	FBounds3 CalcWorldBounds() const
 	{
 		return FBounds3(p0, p1).Join(p2).Join(p3);
 	}
@@ -422,6 +428,7 @@ public:
         , radius(r)
         , radius2(r * r)
     {
+		worldBox = CalcWorldBounds();
     }
 
     bool Intersect(const FRay& ray, FIntersection& oisect) const override
@@ -464,7 +471,7 @@ public:
 		return false;
     }
 
-    FBounds3 WorldBounds() const override
+    FBounds3 CalcWorldBounds() const
     {
         FVector3 half(radius, radius, radius);
         return FBounds3(center + half, center - half);

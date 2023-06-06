@@ -15,6 +15,7 @@
 #include <fstream>
 #include <vector>
 #include <random>
+#include <algorithm>
 
 
 namespace pbrt
@@ -99,6 +100,22 @@ PBRT_CONSTEXPR bool isEqual(T x, T y, T epsilon = EqualEpsilon<T>::absolute_epsi
 		return std::abs(x - y) <= epsilon * std::max(T(1), std::max(std::abs(x), std::abs(y)));
 	else
 		return x == y;
+}
+
+inline Float random_double() {
+	return rand() * (1.0f / (RAND_MAX + 1.0f));
+}
+
+inline Float random_double(Float min, Float max)
+{
+	// return a random real in [min, max).
+	return min + (max - min) * random_double();
+}
+
+inline int random_int(int min, int max)
+{
+	// return a random integer in [min, max]
+	return static_cast<int>(random_double((Float)min, (Float)(max + 1)));
 }
 
 }

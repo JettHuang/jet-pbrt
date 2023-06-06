@@ -11,6 +11,13 @@
 namespace pbrt
 {
 
+enum eAxis
+{
+	AXIS_X = 0,
+	AXIS_Y = 1,
+	AXIS_Z = 2
+};
+
 // Vector2
 class FVector2
 {
@@ -232,6 +239,8 @@ inline FVector3 Spherical_2_Direction(
 				8-------5
 		bounds3_t.min
 */
+class FRay;
+
 class FBounds3
 {
 public:
@@ -293,6 +302,9 @@ public:
 		center = Lerp(_min, _max, (Float)0.5);
 		radius = IsContain(center) ? Distance(center, _max) : (Float)0;
 	}
+
+	bool Intersect(const FRay& ray) const;
+
 };
 
 // matrix4x4

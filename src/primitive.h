@@ -9,6 +9,7 @@
 #include "shape.h"
 #include "material.h"
 #include "light.h"
+#include "bvh.h"
 
 
 namespace pbrt
@@ -46,7 +47,7 @@ namespace pbrt
 			return bHit;
 		}
 
-		virtual FBounds3 WorldBounds() const
+		virtual const FBounds3& WorldBounds() const
 		{
 			return shape->WorldBounds();
 		}
@@ -70,6 +71,7 @@ namespace pbrt
 
 		virtual bool Intersect(const FRay& ray, FIntersection& oisect) const override
 		{
+#if 0
 			bool bHasHit = false;
 
 			for (size_t i=0; i<triangles.size(); ++i)
@@ -84,19 +86,34 @@ namespace pbrt
 			}
 
 			return bHasHit;
+#else
+			if (shadow_bvh->Intersect(ray, oisect))
+			{
+				oisect.primitive = this;
+				return true;
+			}
+
+			return false;
+#endif
 		}
 
-		virtual FBounds3 WorldBounds() const override
+		virtual const FBounds3& WorldBounds() const override
 		{
 			return worldbbox;
 		}
 
-		static std::shared_ptr<FTriangleMesh> LoadTriangleMesh(const char* filename, const FMaterial* inMaterial);
+		static std::shared_ptr<FTriangleMesh> LoadTriangleMesh(const char* filename, const FMaterial* inMaterial, bool flip_normal=false);
 
+		void BuildBvh();
 	protected:
 
 		FBounds3 worldbbox;
 		std::vector<FTriangle>	triangles;
+		std::vector<const FTriangle*> indirect_triangles;
+	
+		// bvh 
+		std::shared_ptr<FBVH_NodeBase>  bvh;
+		FBVH_NodeBase* shadow_bvh;
 	};
 
 } // namespace pbrt
