@@ -230,7 +230,8 @@ public:
 	*/
 	FColor Le(const FLightIntersection& light_isect, const FVector3& wo) const
 	{
-		return (Dot(light_isect.normal, wo) > 0) ? radiance : FColor::Black;
+		Float theta = Dot(light_isect.normal, wo);
+		return (theta > 0.f) ? radiance : FColor::Black;
 	}
 
 protected:

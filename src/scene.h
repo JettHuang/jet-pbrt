@@ -33,7 +33,7 @@ public:
 	bool Intersect(const FRay& ray, FIntersection& oisect) const;
 	bool Occluded(const FPoint3& pos, const FNormal3& normal, const FVector3& dir, Float dist) const
 	{
-		FRay ray(pos, dir);
+		FRay ray(pos, dir, 0.001f, dist - 0.001f);
 		FIntersection unused;
 
 		return Intersect(ray, unused);
@@ -126,7 +126,11 @@ public:
 		return primitive;
 	}
 
-	void AddPrimitive(const std::shared_ptr<FPrimitive>& inPrimitive);
+	std::vector<std::shared_ptr<FShape>> CreateTriangleMesh(const char* filename, bool flip_normal = false, bool bFlipHandedness = false);
+	std::vector<std::shared_ptr<FPrimitive>> CreatePrimitives(const std::vector<std::shared_ptr<FShape>> &inMesh, const std::shared_ptr<FMaterial>& inMaterial);
+
+	std::vector<std::shared_ptr<FAreaLight>> CreateAreaLights(int samplesNum, const FColor& radiance, const std::vector<std::shared_ptr<FShape>> & inShapes, const std::shared_ptr<FMaterial>& inMaterial);
+	std::shared_ptr<FAreaLight> CreateAreaLight(int samplesNum, const FColor& radiance, const std::shared_ptr<FShape> &inShape, const std::shared_ptr<FMaterial>& inMaterial);
 
 protected:
 	void CalculateWorldBound();
@@ -154,8 +158,5 @@ public:
 	FBVH_NodeBase* shadow_bvh;
 };
 
-
-std::shared_ptr<FScene> create_cornellbox_scene(const FVector2& filmsize);
-std::shared_ptr<FScene> create_random_scene(const FVector2& filmsize);
 
 } // namespace pbrt

@@ -54,7 +54,7 @@ public:
         FVector3 dir = front + right * (sample.posfilm.x / resolution.x - (Float)0.5)
             + up * ((Float)0.5 - sample.posfilm.y / resolution.y);
     
-        return FRay(pos, dir);
+        return FRay(pos, dir.Normalize());
     }
 
 protected:

@@ -334,6 +334,10 @@ public:
 	FNormal3 normal;
 };
 
+// load triangles from *.obj file
+bool LoadTriangleMesh(const char* filename, std::vector<std::shared_ptr<FTriangle>> &outTriangles, bool flip_normal = false, bool bFlipHandedness = false);
+
+
 // rectangle
 //    p0------------p3
 //     |            |

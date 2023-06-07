@@ -4,6 +4,7 @@
 
 #include "shape.h"
 #include "primitive.h"
+#include "OBJ_Loader.h"
 
 
 namespace pbrt
@@ -16,6 +17,43 @@ namespace pbrt
 	FColor FIntersection::Le() const
 	{
 		return primitive ? primitive->GetLe(*this) : FColor::Black;
+	}
+
+	// load triangles from *.obj file
+	bool LoadTriangleMesh(const char* filename, std::vector<std::shared_ptr<FTriangle>>& outTriangles, bool flip_normal, bool bFlipHandedness)
+	{
+		outTriangles.clear();
+
+		objl::Loader loader;
+		if (!loader.LoadFile(filename))
+		{
+			ERROR("load triangle mesh failed. %s", filename);
+			return false;
+		}
+
+		DOCHECK(loader.LoadedMeshes.size() == 1);
+		auto mesh = loader.LoadedMeshes[0];
+
+		outTriangles.reserve(mesh.Vertices.size() / 3);
+		for (int i = 0; i < mesh.Vertices.size(); i += 3)
+		{
+			FVector3 v0 = FVector3(mesh.Vertices[i + 0].Position.X, mesh.Vertices[i + 0].Position.Y, mesh.Vertices[i + 0].Position.Z);
+			FVector3 v1 = FVector3(mesh.Vertices[i + 1].Position.X, mesh.Vertices[i + 1].Position.Y, mesh.Vertices[i + 1].Position.Z);
+			FVector3 v2 = FVector3(mesh.Vertices[i + 2].Position.X, mesh.Vertices[i + 2].Position.Y, mesh.Vertices[i + 2].Position.Z);
+
+			if (bFlipHandedness)
+			{
+				v0.z = -v0.z;
+				v1.z = -v1.z;
+				v2.z = -v2.z;
+			}
+
+			std::shared_ptr<FTriangle> triangle = std::make_shared<FTriangle>(v0, v1, v2, flip_normal);
+
+			outTriangles.push_back(triangle);
+		} // end for i
+
+		return true;
 	}
 
 

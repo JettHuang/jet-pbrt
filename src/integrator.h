@@ -43,7 +43,7 @@ public:
 		FIntersection isect;
 		if (scene->Intersect(ray, isect))
 		{
-            return isect.position.Normalize();
+            return FColor(std::abs(isect.normal.x), std::abs(isect.normal.y), std::abs(isect.normal.z));
 		}
 
         return FColor::Black;

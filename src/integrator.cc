@@ -18,7 +18,7 @@ void FIntegrator::Render(const FScene* scene, FSampler* sampler, FFilm* film)
 	Float ratio = (Float)1 / sampler->GetSamplesPerPixel();
 	for (int y = 0; y < height; y++)
 	{
-		std::cerr << "\rScanlines remaining: " << (height - y) << ' ' << std::flush;
+		std::cerr << "\rScanlines remaining: " << (height - y - 1) << ' ' << std::flush;
 		for (int x = 0; x <width; x++)
 		{
 			FColor L;
