@@ -19,7 +19,8 @@
 namespace pbrt
 {
 
-/*
+
+ /*
   rendering scene by Rendering Equation(Li = Lo = Le + ¡ÒLi)
   solving Rendering Equation(a integral equation) by numerical integration(ie. Monte Carlo Integration)
 */
@@ -28,9 +29,14 @@ class FIntegrator
 public:
     virtual ~FIntegrator() {}
 
-    void Render(const FScene* scene, FSampler* sampler, FFilm* film);
+    void Render(const FScene* scene, FSampler* sampler, FFilm* film, int numthreads = 1) const;
 
-    virtual FColor Li(const FRay& ray, const FScene* scene, FSampler* sampler) = 0;
+protected:
+    void DoRender(const FScene* scene, FSampler* sampler, FFilmView *filmview) const;
+
+    virtual FColor Li(const FRay& ray, const FScene* scene, FSampler* sampler) const = 0;
+
+    friend class FRenderTask;
 };
 
 
@@ -38,7 +44,7 @@ public:
 class FDebugIntegrator : public FIntegrator
 {
 public:
-	FColor Li(const FRay& ray, const FScene* scene, FSampler* sampler) override
+	FColor Li(const FRay& ray, const FScene* scene, FSampler* sampler) const override
 	{
 		FIntersection isect;
 		if (scene->Intersect(ray, isect))
@@ -60,16 +66,16 @@ public:
 	{
 	}
 
-    FColor Li(const FRay& ray, const FScene* scene, FSampler* sampler) override
+    FColor Li(const FRay& ray, const FScene* scene, FSampler* sampler) const override
     {
         return Li(ray, scene, sampler, 0);
     }
 
 protected:
-    FColor Li(const FRay& ray, const FScene* scene, FSampler* sampler, int depth);
+    FColor Li(const FRay& ray, const FScene* scene, FSampler* sampler, int depth) const;
 
-    FColor SpecularReflect(const FRay& ray, const FIntersection& isect, const FBSDF* bsdfptr, const FScene* scene, FSampler* sampler, int depth);
-    FColor SpecularTransmit(const FRay& ray, const FIntersection& isect, const FBSDF* bsdfptr, const FScene* scene, FSampler* sampler, int depth);
+    FColor SpecularReflect(const FRay& ray, const FIntersection& isect, const FBSDF* bsdfptr, const FScene* scene, FSampler* sampler, int depth) const;
+    FColor SpecularTransmit(const FRay& ray, const FIntersection& isect, const FBSDF* bsdfptr, const FScene* scene, FSampler* sampler, int depth) const;
 
 protected:
 	int maxDepth;

@@ -43,7 +43,7 @@ inline bool refract(const FVector3& wi, const FNormal3& normal, Float eta, FVect
 	Float cos_theta_t = std::sqrt(1 - sin_theta_t_sq);
 	*out_wt = eta * -wi + (eta * cos_theta_i - cos_theta_t) * normal;
 
-	DOCHECK(out_wt->IsValid() && !out_wt->IsZero());
+	PBRT_DOCHECK(out_wt->IsValid() && !out_wt->IsZero());
 	return true;
 }
 
@@ -300,7 +300,7 @@ public:
 		sample.pdf = Pdf_Local(wo, sample.wi);
 		sample.ebsdf = eBSDFType::Reflection | eBSDFType::Diffuse;
 
-		DOCHECK(sample.f.IsValid());
+		PBRT_DOCHECK(sample.f.IsValid());
 		return sample;
 	}
 
@@ -353,7 +353,7 @@ public:
 		sample.pdf = 1;
 		sample.ebsdf = eBSDFType::Reflection | eBSDFType::Specular;
 
-		DOCHECK(sample.f.IsValid());
+		PBRT_DOCHECK(sample.f.IsValid());
 		return sample;
 	}
 
@@ -439,7 +439,7 @@ public:
 			sample.f = (reflectance * reflect_percent) / abs_cos_theta(sample.wi);
 			sample.ebsdf = eBSDFType::Reflection | eBSDFType::Specular;
 
-			DOCHECK(sample.f.IsValid());
+			PBRT_DOCHECK(sample.f.IsValid());
 		}
 		else
 		{
@@ -457,7 +457,7 @@ public:
 				sample.f = (transmittance * refract_percent) / abs_cos_theta(sample.wi);
 				sample.ebsdf = eBSDFType::Transmission | eBSDFType::Specular;
 
-				DOCHECK(sample.f.IsValid());
+				PBRT_DOCHECK(sample.f.IsValid());
 			}
 			else
 			{

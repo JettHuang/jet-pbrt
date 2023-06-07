@@ -26,9 +26,9 @@ namespace pbrt
 #define Float	float
 
 
-#define PRINT(fmt, ...)		log_print(fmt, __VA_ARGS__)
-#define ERROR(fmt, ...)		log_print(fmt, __VA_ARGS__)
-#define DOCHECK(x)			{ if(!(x)) { PRINT("DOCHECK(%s) failed at %s:%d\n", #x, __FILE__, __LINE__); } }
+#define PBRT_PRINT(fmt, ...)		log_print(fmt, __VA_ARGS__)
+#define PBRT_ERROR(fmt, ...)		log_print(fmt, __VA_ARGS__)
+#define PBRT_DOCHECK(x)			{ if(!(x)) { PBRT_PRINT("PBRT_DOCHECK(%s) failed at %s:%d\n", #x, __FILE__, __LINE__); } }
 
 void log_print(const char* fmt, ...);
 
@@ -117,5 +117,33 @@ inline int random_int(int min, int max)
 	// return a random integer in [min, max]
 	return static_cast<int>(random_double((Float)min, (Float)(max + 1)));
 }
+
+
+double appInitTiming();
+double appSeconds();
+double appMicroSeconds();
+int64_t appCycles();
+
+class FPerformanceCounter
+{
+public:
+	FPerformanceCounter() : _timestamp(0.0)
+	{}
+
+	inline void StartPerf()
+	{
+		_timestamp = appMicroSeconds();
+	}
+
+	// return micro-seconds elapsed
+	inline double EndPerf()
+	{
+		double _endstamp = appMicroSeconds();
+		return _endstamp - _timestamp;
+	}
+
+private:
+	double  _timestamp;
+};
 
 }

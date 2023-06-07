@@ -10,7 +10,7 @@ namespace pbrt
 
 bool FFilm::SaveAsImage(const std::string& filename, EImageType imgType) const
 {
-	DOCHECK(Channels() == 3);
+	PBRT_DOCHECK(Channels() == 3);
 
 	switch (imgType)
 	{
@@ -18,21 +18,21 @@ bool FFilm::SaveAsImage(const std::string& filename, EImageType imgType) const
 	{
 		const std::string realname = filename + ".ppm";
 
-		return SaveAsPPM(realname, Width(), Height(), Channels(), pixels.get());
+		return SaveAsPPM(realname, Width(), Height(), Channels(), pixels);
 	}
 		break;
 	case pbrt::EImageType::BMP:
 	{
 		const std::string realname = filename + ".bmp";
 
-		return SaveAsBMP(realname, Width(), Height(), Channels(), pixels.get());
+		return SaveAsBMP(realname, Width(), Height(), Channels(), pixels);
 	}
 		break;
 	case pbrt::EImageType::HDR:
 	{
 		const std::string realname = filename + ".hdr";
 
-		return SaveAsHDR(realname, Width(), Height(), Channels(), pixels.get());
+		return SaveAsHDR(realname, Width(), Height(), Channels(), pixels);
 	}
 		break;
 	default:

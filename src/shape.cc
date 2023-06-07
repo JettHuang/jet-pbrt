@@ -27,11 +27,11 @@ namespace pbrt
 		objl::Loader loader;
 		if (!loader.LoadFile(filename))
 		{
-			ERROR("load triangle mesh failed. %s", filename);
+			PBRT_ERROR("load triangle mesh failed. %s", filename);
 			return false;
 		}
 
-		DOCHECK(loader.LoadedMeshes.size() == 1);
+		PBRT_DOCHECK(loader.LoadedMeshes.size() == 1);
 		auto mesh = loader.LoadedMeshes[0];
 
 		outTriangles.reserve(mesh.Vertices.size() / 3);

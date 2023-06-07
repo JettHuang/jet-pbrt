@@ -29,14 +29,14 @@ public:
 
 	Float operator[] (int i) const 
 	{ 
-		DOCHECK(i >= 0 && i <= 1); 
+		PBRT_DOCHECK(i >= 0 && i <= 1); 
 		
 		return  i == 0 ? x : y;
 	}
 
 	Float& operator[] (int i)
 	{
-		DOCHECK(i >= 0 && i <= 1);
+		PBRT_DOCHECK(i >= 0 && i <= 1);
 
 		return  i == 0 ? x : y;
 	}
@@ -72,7 +72,7 @@ public:
 
 	Float operator[] (int i) const
 	{
-		DOCHECK(i >= 0 && i <= 2);
+		PBRT_DOCHECK(i >= 0 && i <= 2);
 
 		if (i == 0) return x;
 		if (i == 1) return y;
@@ -81,7 +81,7 @@ public:
 
 	Float& operator[] (int i)
 	{
-		DOCHECK(i >= 0 && i <= 2);
+		PBRT_DOCHECK(i >= 0 && i <= 2);
 
 		if (i == 0) return x;
 		if (i == 1) return y;
@@ -406,7 +406,7 @@ public:
 
 	FPoint3 operator()(Float t) const
 	{
-		DOCHECK(t >= 0);
+		PBRT_DOCHECK(t >= 0);
 		return origin + t * dir;
 	}
 

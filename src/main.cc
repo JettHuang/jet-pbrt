@@ -68,7 +68,7 @@ int main(int argc, char* agrv[])
 
 	FWhittedIntegrator integrator(5);
 	//FDebugIntegrator integrator;
-	integrator.Render(scene.get(), sampler.get(), &film);
+	integrator.Render(scene.get(), sampler.get(), &film, 32);
 
 	film.SaveAsImage("cornellbox_debug", EImageType::BMP);
 

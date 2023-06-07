@@ -31,7 +31,15 @@ public:
 		: width(w)
 		, height(h)
 	{
-		pixels = std::make_unique<FColor[]>(GetPixelsNum());
+		pixels = new FColor[GetPixelsNum()];
+	}
+
+	~FFilm()
+	{
+		if (pixels) {
+			delete[] pixels;
+		}
+		pixels = nullptr;
 	}
 
 	int Width() const { return width; }
@@ -42,10 +50,10 @@ public:
 	FVector2 GetResolution() const { return FVector2((Float)width, (Float)height); }
 	virtual FColor& operator()(int x, int y)
 	{
-		DOCHECK(x >=0 && x < width && y >=0 && y < height);
+		PBRT_DOCHECK(x >=0 && x < width && y >=0 && y < height);
 
 		int offset = width * y + x;
-		return *(pixels.get() + offset);
+		return *(pixels + offset);
 	}
 	
 	void SetColor(int x, int y, const FColor& clr)
@@ -82,7 +90,49 @@ protected:
 protected:
 	int width;
 	int height;
-	std::unique_ptr<FColor[]> pixels;
+	FColor *pixels;
+};
+
+// Film View
+//   +--------------+
+//   |              |
+//   |              |
+//   +--------------+
+//
+//   [sx  ex)  [sy  ey)
+class FFilmView
+{
+public:
+	FFilmView(FFilm* inFilm, int sx, int sy, int ex, int ey)
+		: pFilm(inFilm)
+		, start_x(sx)
+		, start_y(sy)
+		, end_x(ex)
+		, end_y(ey)
+	{}
+
+	void GetViewport(int& startx, int& starty, int& endx, int& endy)
+	{
+		startx = start_x;
+		starty = start_y;
+		endx = end_x;
+		endy = end_y;
+	}
+
+	void SetColor(int x, int y, const FColor& clr)
+	{
+		pFilm->SetColor(x, y, clr);
+	}
+
+	void AddColor(int x, int y, const FColor& clr)
+	{
+		pFilm->AddColor(x, y, clr);
+	}
+
+protected:
+	FFilm* pFilm;
+	int start_x, start_y;
+	int end_x, end_y;
 };
 
 } // namespace pbrt
