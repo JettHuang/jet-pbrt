@@ -202,13 +202,16 @@ class FBSDF
 public:
 	virtual ~FBSDF() {}
 
-	FBSDF(const FFrame &frame) 
+	FBSDF(const FFrame &frame, int inFlags) 
 		: shading_frame(frame)
+		, typeFlags(inFlags)
 	{
 	}
 
 public:
 	virtual bool IsDelta() const = 0;
+
+	bool MatchTypes(int t) const { return (typeFlags & t) == typeFlags; }
 
 	// or called `f()`, `evaluate()`
 	FColor Evalf(const FVector3& world_wo, const FVector3& world_wi) const
@@ -257,6 +260,7 @@ private:
 
 private:
 	FFrame shading_frame;
+	int typeFlags;
 };
 
 
@@ -265,7 +269,7 @@ class FLambertionReflection : public FBSDF
 {
 public:
 	FLambertionReflection(const FFrame& shading_frame, const FColor& albedo) 
-		: FBSDF(shading_frame)
+		: FBSDF(shading_frame, eBSDFType::Reflection | eBSDFType::Diffuse)
 		, albedo(albedo)
 	{
 	}
@@ -323,7 +327,7 @@ class FSpecularReflection : public FBSDF
 {
 public:
 	FSpecularReflection(const FFrame& frame, const FColor& reflectance) 
-		: FBSDF(frame)
+		: FBSDF(frame, eBSDFType::Reflection | eBSDFType::Specular)
 		, reflectance{ reflectance}
 	{
 	}
@@ -385,7 +389,7 @@ class FFresnelSpecular : public FBSDF
 public:
 	FFresnelSpecular(
 		const FFrame& frame, Float eta_i, Float eta_t, const FColor& reflectance, const FColor& transmittance)
-		: FBSDF(frame)
+		: FBSDF(frame,  eBSDFType::Specular | eBSDFType::Reflection | eBSDFType::Transmission)
 		, eta_i(eta_i)
 		, eta_t(eta_t)
 		, reflectance(reflectance)
@@ -422,21 +426,17 @@ public:
 		}
 
 		// percentage of light's reflect and refract
-		Float reflect_percent = fresnel_dielectric(cos_theta(wo), eta_i, eta_t);
-		Float refract_percent = 1 - reflect_percent;
-
-		// and probability of single ray is reflect or refract
-		Float Pr_reflect = reflect_percent, Pr_refract = refract_percent;
+		Float F = fresnel_dielectric(cos_theta(wo), eta_i, eta_t);
 
 		// Russian roulette
-		if (random.x < Pr_reflect)
+		if (random.x < F)
 		{
 			// specular reflection
 
 			sample.wi = FVector3(-wo.x, -wo.y, wo.z);
 
-			sample.pdf = Pr_reflect;
-			sample.f = (reflectance * reflect_percent) / abs_cos_theta(sample.wi);
+			sample.pdf = F;
+			sample.f = (reflectance * F) / abs_cos_theta(sample.wi);
 			sample.ebsdf = eBSDFType::Reflection | eBSDFType::Specular;
 
 			PBRT_DOCHECK(sample.f.IsValid());
@@ -446,15 +446,18 @@ public:
 			// specular refract/transmission
 
 			FNormal3 normal(0, 0, 1); // use `z` as normal
-			bool into = normal.Dot(wo) > 0; // ray from outside going in?
+			bool entering = cos_theta(wo) > 0; // ray from outside going in?
 
-			FNormal3 wo_normal = into ? normal : normal * -1;
-			Float eta = into ? eta_i / eta_t : eta_t / eta_i;
+			FNormal3 wo_normal = entering ? normal : -normal;
+			Float etaI = entering ? eta_i : eta_t;
+			Float etaT = entering ? eta_t : eta_i;
 
-			if (refract(wo, wo_normal, eta, &sample.wi))
+			if (refract(wo, wo_normal, etaI / etaT, &sample.wi))
 			{
-				sample.pdf = Pr_refract;
-				sample.f = (transmittance * refract_percent) / abs_cos_theta(sample.wi);
+				FColor ft = transmittance * (1 - F);
+				ft *= (etaI * etaI) / (etaT * etaT);
+				sample.pdf = 1 - F;
+				sample.f = ft / abs_cos_theta(sample.wi);
 				sample.ebsdf = eBSDFType::Transmission | eBSDFType::Specular;
 
 				PBRT_DOCHECK(sample.f.IsValid());
@@ -487,7 +490,7 @@ class FPhongSpecularReflection : public FBSDF
 {
 public:
 	FPhongSpecularReflection(const FFrame& frame,  const FColor& Ks, Float exponent)
-		: FBSDF(frame)
+		: FBSDF(frame, eBSDFType::Reflection | eBSDFType::Glossy)
 		, Ks(Ks)
 		, exponent(exponent)
 	{

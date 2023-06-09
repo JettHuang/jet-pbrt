@@ -162,6 +162,7 @@ FColor FWhittedIntegrator::Li(const FRay& ray, const FScene* scene, FSampler* sa
 		// Trace rays for specular reflection and refraction
 		L += SpecularReflect(ray, isect, bsdfptr.get(), scene, sampler, depth);
 		L += SpecularTransmit(ray, isect, bsdfptr.get(), scene, sampler, depth);
+		L += SpecularReflectAndTransmit(ray, isect, bsdfptr.get(), scene, sampler, depth);
 	}
 
 	return L;
@@ -172,12 +173,12 @@ FColor FWhittedIntegrator::SpecularReflect(const FRay& ray, const FIntersection&
 {
 	const int matchFlags = eBSDFType::Specular | eBSDFType::Reflection;
 
-	FBSDFSample bsdfsample = bsdfptr->Sample(isect.wo, sampler->GetFloat2());
-	if ((bsdfsample.ebsdf & matchFlags) != matchFlags)
+	if (!bsdfptr->MatchTypes(matchFlags))
 	{
 		return FColor::Black;
 	}
 
+	FBSDFSample bsdfsample = bsdfptr->Sample(isect.wo, sampler->GetFloat2());
 	return bsdfsample.f * Li(isect.SpawnRay(bsdfsample.wi), scene, sampler, depth + 1) * AbsDot(bsdfsample.wi, isect.normal) / bsdfsample.pdf;
 }
 
@@ -185,12 +186,25 @@ FColor FWhittedIntegrator::SpecularTransmit(const FRay& ray, const FIntersection
 {
 	const int matchFlags = eBSDFType::Specular | eBSDFType::Transmission;
 
-	FBSDFSample bsdfsample = bsdfptr->Sample(isect.wo, sampler->GetFloat2());
-	if ((bsdfsample.ebsdf & matchFlags) != matchFlags)
+	if (!bsdfptr->MatchTypes(matchFlags))
 	{
 		return FColor::Black;
 	}
 
+	FBSDFSample bsdfsample = bsdfptr->Sample(isect.wo, sampler->GetFloat2());
+	return bsdfsample.f * Li(isect.SpawnRay(bsdfsample.wi), scene, sampler, depth + 1) * AbsDot(bsdfsample.wi, isect.normal) / bsdfsample.pdf;
+}
+
+FColor FWhittedIntegrator::SpecularReflectAndTransmit(const FRay& ray, const FIntersection& isect, const FBSDF* bsdfptr, const FScene* scene, FSampler* sampler, int depth) const
+{
+	const int matchFlags = eBSDFType::Specular | eBSDFType::Reflection | eBSDFType::Transmission;
+
+	if (!bsdfptr->MatchTypes(matchFlags))
+	{
+		return FColor::Black;
+	}
+
+	FBSDFSample bsdfsample = bsdfptr->Sample(isect.wo, sampler->GetFloat2());
 	return bsdfsample.f * Li(isect.SpawnRay(bsdfsample.wi), scene, sampler, depth + 1) * AbsDot(bsdfsample.wi, isect.normal) / bsdfsample.pdf;
 }
 

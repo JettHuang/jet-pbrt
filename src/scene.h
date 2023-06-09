@@ -22,10 +22,13 @@ namespace pbrt
 class FScene
 {
 public:
-	FScene()
-		: shadow_camera(nullptr)
+	FScene(const char *inName)
+		: name(inName)
+		, shadow_camera(nullptr)
 		, shadow_bvh(nullptr)
 	{}
+
+	const char* NameStr() const { return name.c_str(); }
 
 	void Preprocess();
 
@@ -124,6 +127,7 @@ protected:
 	void CalculateWorldBound();
 
 public:
+	std::string  name;
 	std::shared_ptr<FCamera>	camera;
 	std::vector<std::shared_ptr<FShape>>	shapes;
 	std::vector<std::shared_ptr<FMaterial>> materials;

@@ -10,14 +10,14 @@
 using namespace pbrt;
 
 
-std::shared_ptr<FScene> create_cornellbox_box_scene(const FVector2& filmsize)
+std::shared_ptr<FScene> create_cornellbox_scene(const FVector2& filmsize)
 {
 	const FPoint3 lookfrom(278, 273, 960);
 	const FPoint3 lookat(278, 273, 0);
 	const FVector3 vup(0, 1, 0);
 	const Float vfov = 60.0;
 
-	std::shared_ptr<FScene> scene = std::make_shared<FScene>();
+	std::shared_ptr<FScene> scene = std::make_shared<FScene>("cornell_box_scene");
 
 	scene->CreateCamera<FCamera>(lookfrom, Normalize(lookat - lookfrom), vup, vfov, filmsize);
 
@@ -63,7 +63,7 @@ std::shared_ptr<FScene> create_bunny_scene(const FVector2& filmsize)
 	const FVector3 vup(0, 1, 0);
 	const Float vfov = 60.0;
 
-	std::shared_ptr<FScene> scene = std::make_shared<FScene>();
+	std::shared_ptr<FScene> scene = std::make_shared<FScene>("bunny_scene");
 
 	scene->CreateCamera<FCamera>(lookfrom, Normalize(lookat - lookfrom), vup, vfov, filmsize);
 
@@ -81,8 +81,8 @@ std::shared_ptr<FScene> create_bunny_scene(const FVector2& filmsize)
 	std::shared_ptr<FShape> floor = scene->CreateShape<FRectangle>(FRectangle::FromXZ(-100, 100, -100, 100, 0));
 	scene->CreatePrimitive(floor.get(), green.get(), nullptr);
 
-	//std::shared_ptr<FShape> ball = scene->CreateShape<FSphere>(FVector3(60,0,0), 30.f);
-	//scene->CreatePrimitive(ball.get(), glass_mat.get(), nullptr);
+	std::shared_ptr<FShape> ball = scene->CreateShape<FSphere>(FVector3(-100, 100, -100), 30.f);
+	scene->CreatePrimitive(ball.get(), glass_mat.get(), nullptr);
 	
 	// bunny
 	std::vector<std::shared_ptr<FShape>> bunny = scene->CreateTriangleMesh("scene\\bunny\\bunny.obj", true, true, FVector3(0,0,0), 500.f);
@@ -103,13 +103,13 @@ int main(int argc, char* agrv[])
 	std::shared_ptr<FSampler> sampler = std::make_shared<FRandomSampler>(samples_per_pixel);
 
 	//FDebugIntegrator integrator;
-	//FWhittedIntegrator integrator(5);
+	FWhittedIntegrator integrator(5);
 	//FPathIntegratorRecursive integrator(5);
-	FPathIntegratorIteration integrator(5);
+	//FPathIntegratorIteration integrator(5);
 
 	integrator.Render(scene.get(), sampler.get(), &film, 16);
 
-	film.SaveAsImage("cornell_box_path", EImageType::BMP);
+	film.SaveAsImage(scene->NameStr(), EImageType::BMP);
 
 	return 0;
 }
