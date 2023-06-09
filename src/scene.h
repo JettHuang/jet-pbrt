@@ -24,7 +24,6 @@ class FScene
 public:
 	FScene()
 		: shadow_camera(nullptr)
-		, shadow_environment_light(nullptr)
 		, shadow_bvh(nullptr)
 	{}
 
@@ -57,17 +56,7 @@ public:
 	const FCamera* Camera() const { return shadow_camera; }
 	int LightNum() const { return (int)shadow_lights.size(); }
 	const std::vector<FLight*>& Lights() const { return shadow_lights; }
-
-	const FEnvironmentLight* EnvironmentLight() const { return shadow_environment_light; }
-	FColor EnvironmentLighting(const FRay& ray) const
-	{
-		if (shadow_environment_light != nullptr)
-		{
-			return shadow_environment_light->Le(ray);
-		}
-
-		return FColor::Black;
-	}
+	const std::vector<FLight*>& InfiniteLights() const { return shadow_infinitelights; }
 
 	//////////////////////////////////////////////////////////////////////////
 	// add interfaces
@@ -106,10 +95,9 @@ public:
 		lights.push_back(light);
 		shadow_lights.push_back(light.get());
 
-		if (std::dynamic_pointer_cast<FEnvironmentLight>(light))
+		if (light->Flags() & eLightFlags::InfiniteLight)
 		{
-			environment_light = std::dynamic_pointer_cast<FEnvironmentLight>(light);
-			shadow_environment_light = environment_light.get();
+			shadow_infinitelights.push_back(light.get());
 		}
 
 		return light;
@@ -126,7 +114,7 @@ public:
 		return primitive;
 	}
 
-	std::vector<std::shared_ptr<FShape>> CreateTriangleMesh(const char* filename, bool flip_normal = false, bool bFlipHandedness = false);
+	std::vector<std::shared_ptr<FShape>> CreateTriangleMesh(const char* filename, bool flip_normal = false, bool bFlipHandedness = false, const FVector3 & offset = FVector3(0, 0, 0), Float inScale = 1.f);
 	std::vector<std::shared_ptr<FPrimitive>> CreatePrimitives(const std::vector<std::shared_ptr<FShape>> &inMesh, const std::shared_ptr<FMaterial>& inMaterial);
 
 	std::vector<std::shared_ptr<FAreaLight>> CreateAreaLights(int samplesNum, const FColor& radiance, const std::vector<std::shared_ptr<FShape>> & inShapes, const std::shared_ptr<FMaterial>& inMaterial);
@@ -141,14 +129,13 @@ public:
 	std::vector<std::shared_ptr<FMaterial>> materials;
 
 	std::vector<std::shared_ptr<FLight>> lights;
-	std::shared_ptr<FEnvironmentLight> environment_light;
 
 	std::vector<std::shared_ptr<FPrimitive>> primitives;
 
 	// shadows for multi-thread visiting
 	FCamera* shadow_camera;
 	std::vector<FLight*> shadow_lights;
-	FEnvironmentLight* shadow_environment_light;
+	std::vector<FLight*> shadow_infinitelights;
 	std::vector<FPrimitive*> shadow_primitives;
 
 	FBounds3 worldBound;

@@ -20,7 +20,7 @@ namespace pbrt
 	}
 
 	// load triangles from *.obj file
-	bool LoadTriangleMesh(const char* filename, std::vector<std::shared_ptr<FTriangle>>& outTriangles, bool flip_normal, bool bFlipHandedness)
+	bool LoadTriangleMesh(const char* filename, std::vector<std::shared_ptr<FTriangle>>& outTriangles, bool flip_normal, bool bFlipHandedness, const FVector3& offset, Float inScale)
 	{
 		outTriangles.clear();
 
@@ -48,6 +48,13 @@ namespace pbrt
 				v2.z = -v2.z;
 			}
 
+			v0 *= inScale;
+			v1 *= inScale;
+			v2 *= inScale;
+
+			v0 += offset;
+			v1 += offset;
+			v2 += offset;
 			std::shared_ptr<FTriangle> triangle = std::make_shared<FTriangle>(v0, v1, v2, flip_normal);
 
 			outTriangles.push_back(triangle);

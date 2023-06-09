@@ -50,7 +50,7 @@ void FIntegrator::Render(const FScene* scene, FSampler* sampler, FFilm* film, in
 	}
 	else
 	{
-		const int lines_per_task = 10;
+		const int lines_per_task = 20;
 		FParallelSystem  parallel;
 		std::vector<std::shared_ptr<FRenderTask>>  tasks;
 		
@@ -119,9 +119,10 @@ FColor FWhittedIntegrator::Li(const FRay& ray, const FScene* scene, FSampler* sa
 
 	// Find closest ray intersection or return background radiance
 	FIntersection isect;
-	if (!scene->Intersect(ray, isect))
+	bool bHit = scene->Intersect(ray, isect);
+	if (!bHit)
 	{
-		for (const auto& light : scene->lights)
+		for (const auto& light : scene->InfiniteLights())
 			L += light->Le(ray);
 
 		return L;
@@ -141,7 +142,7 @@ FColor FWhittedIntegrator::Li(const FRay& ray, const FScene* scene, FSampler* sa
 	L += isect.Le();
 
 	// Add contribution of each light source
-	for (const auto& light : scene->lights)
+	for (const auto& light : scene->Lights())
 	{
 		FLightSample lightsample = light->Sample_Li(isect, sampler->GetFloat2());
 		if (lightsample.Li.IsBlack() || lightsample.pdf == (Float)0) {
@@ -193,5 +194,187 @@ FColor FWhittedIntegrator::SpecularTransmit(const FRay& ray, const FIntersection
 	return bsdfsample.f * Li(isect.SpawnRay(bsdfsample.wi), scene, sampler, depth + 1) * AbsDot(bsdfsample.wi, isect.normal) / bsdfsample.pdf;
 }
 
+//////////////////////////////////////////////////////////////////////////
+// Path Integrator Recursive
+// Li = Lo = Le + ¡ÒLi
+//         = Le + ¡Ò(Le + ¡ÒLi)
+//         = Le + ¡ÒLe + ¡Ò(¡ÒLi)
+//         = Le + ¡ÒLe + ¡Ò(¡Ò(Le + ¡ÒLi))
+//         = Le + ¡ÒLe + ¡Ò(¡ÒLe + ¡Ò(¡ÒLi))
+//         = Le + ¡ÒLe + ¡Ò(¡ÒLe + ¡Ò(¡Ò(Le + ¡ÒLi)))
+//         = Le + ¡ÒLe + ¡Ò(¡ÒLe + ¡Ò(¡ÒLe + ¡Ò(¡ÒLi)))
+//         = Le + ¡ÒLe + ¡Ò(¡ÒLe + ¡Ò(¡ÒLe + ¡Ò(¡ÒLe + ...))) < --LOOK THIS
+
+FColor FPathIntegratorRecursive::Li(const FRay& ray, const FScene* scene, FSampler* sampler, int depth, bool is_prev_specular) const
+{
+	FColor L(0, 0, 0);
+
+	// Find closest ray intersection or return background radiance
+	FIntersection isect;
+	bool bFoundIntersection = scene->Intersect(ray, isect);
+	if (depth == 0 || is_prev_specular)
+	{
+		if (bFoundIntersection) {
+			L += isect.Le();
+		}
+		else {
+			for (const auto& light : scene->InfiniteLights())
+				L += light->Le(ray);
+		}
+	}
+	
+	// Terminate path if ray escaped or _maxDepth_ was reached
+	if (!bFoundIntersection || depth >= maxDepth)
+	{
+		return L;
+	}
+
+	const FNormal3& N = isect.normal;
+
+	// Compute scattering function for surface interaction
+	std::unique_ptr<FBSDF> bsdfptr = isect.Bsdf();
+	if (!bsdfptr) {
+		return Li(isect.SpawnRay(ray.Dir()), scene, sampler, depth, is_prev_specular);
+	}
+
+	// Sample illumination from lights to find path contribution.
+	// (But skip this for perfectly specular BSDFs.)
+	if (!bsdfptr->IsDelta())
+	{
+		for (const auto& light : scene->Lights())
+		{
+			FLightSample lightsample = light->Sample_Li(isect, sampler->GetFloat2());
+			if (lightsample.Li.IsBlack() || lightsample.pdf == (Float)0) {
+				continue;
+			}
+
+			FColor f = bsdfptr->Evalf(isect.wo, lightsample.wi);
+			if (!f.IsBlack() && !scene->Occluded(isect, lightsample.pos))
+			{
+				L += f * lightsample.Li * AbsDot(lightsample.wi, N) / lightsample.pdf;
+			}
+		} // end for 
+	}
+	
+	// Sample BSDF to get new path direction
+	FBSDFSample bsdfsample = bsdfptr->Sample(isect.wo, sampler->GetFloat2());
+	if (bsdfsample.f.IsBlack() || bsdfsample.pdf == 0.f)
+	{
+		return L;
+	}
+
+	// Possibly terminate the path with Russian roulette.
+	if (depth >= 3)
+	{
+		Float q = std::max((Float)0.05, 1 - bsdfsample.f.MaxComponentValue());
+		if (sampler->GetFloat() < q)
+		{
+			return L;
+		}
+
+		L += bsdfsample.f * AbsDot(bsdfsample.wi, isect.normal) * Li(isect.SpawnRay(bsdfsample.wi), scene, sampler, depth + 1, bsdfptr->IsDelta()) / (bsdfsample.pdf * (1 - q));
+		return L;
+	}
+
+	// for first 3 paths.
+	L += bsdfsample.f * AbsDot(bsdfsample.wi, isect.normal) * Li(isect.SpawnRay(bsdfsample.wi), scene, sampler, depth + 1, bsdfptr->IsDelta()) / bsdfsample.pdf;
+	return L;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Path Integrator iteration
+//
+//  iteration style path tracing
+//  Li = Le + T*Le + T*(T*Le + T*(T*Le + ...))
+//	   = Le + T*Le + T^2*Le  + ...
+//
+FColor FPathIntegratorIteration::Li(const FRay& inRay, const FScene* scene, FSampler* sampler) const
+{
+	FColor L(0, 0, 0),  beta(1, 1, 1);
+	FRay ray(inRay);
+	bool bSpecularBounce = false;
+	int bounces;
+
+	for (bounces = 0; ; ++bounces)
+	{
+		// Find closest ray intersection or return background radiance
+		FIntersection isect;
+		bool bFoundIntersection = scene->Intersect(ray, isect);
+		if (bounces == 0 || bSpecularBounce)
+		{
+			if (bFoundIntersection) {
+				L += beta * isect.Le();
+			}
+			else {
+				for (const auto& light : scene->InfiniteLights())
+					L += beta * light->Le(ray);
+			}
+		}
+
+		// Terminate path if ray escaped or _maxDepth_ was reached
+		if (!bFoundIntersection || bounces >= maxDepth)
+		{
+			break;
+		}
+
+		const FNormal3& N = isect.normal;
+
+		// Compute scattering function for surface interaction
+		std::unique_ptr<FBSDF> bsdfptr = isect.Bsdf();
+		if (!bsdfptr) {
+			ray = isect.SpawnRay(ray.Dir());
+			--bounces;
+			continue;
+		}
+
+		// Sample illumination from lights to find path contribution.
+		// (But skip this for perfectly specular BSDFs.)
+		if (!bsdfptr->IsDelta())
+		{
+			for (const auto& light : scene->Lights())
+			{
+				FLightSample lightsample = light->Sample_Li(isect, sampler->GetFloat2());
+				if (lightsample.Li.IsBlack() || lightsample.pdf == (Float)0) {
+					continue;
+				}
+
+				FColor f = bsdfptr->Evalf(isect.wo, lightsample.wi);
+				if (!f.IsBlack() && !scene->Occluded(isect, lightsample.pos))
+				{
+					L += beta * f * lightsample.Li * AbsDot(lightsample.wi, N) / lightsample.pdf;
+				}
+			} // end for 
+		}
+
+		// Sample BSDF to get new path direction
+		FBSDFSample bsdfsample = bsdfptr->Sample(isect.wo, sampler->GetFloat2());
+		if (bsdfsample.f.IsBlack() || bsdfsample.pdf == 0.f)
+		{
+			break;
+		}
+
+		bSpecularBounce = bsdfsample.ebsdf & eBSDFType::Specular;
+		// Possibly terminate the path with Russian roulette.
+		if (bounces >= 3)
+		{
+			Float q = std::max((Float)0.05, 1 - bsdfsample.f.MaxComponentValue());
+			if (sampler->GetFloat() < q)
+			{
+				break;
+			}
+
+			beta *= bsdfsample.f * AbsDot(bsdfsample.wi, isect.normal) / (bsdfsample.pdf * (1 - q));
+			ray = isect.SpawnRay(bsdfsample.wi);
+		}
+		else
+		{
+			// for first 3 paths.
+			beta *= bsdfsample.f * AbsDot(bsdfsample.wi, isect.normal) / bsdfsample.pdf;
+			ray = isect.SpawnRay(bsdfsample.wi);
+		}
+	} // end for 
+
+	return L;
+}
 
 } // namespace pbrt

@@ -49,6 +49,7 @@ public:
 		FIntersection isect;
 		if (scene->Intersect(ray, isect))
 		{
+            return isect.normal;
             return FColor(std::abs(isect.normal.x), std::abs(isect.normal.y), std::abs(isect.normal.z));
 		}
 
@@ -79,6 +80,44 @@ protected:
 
 protected:
 	int maxDepth;
+};
+
+// Path Integrator recursive
+class FPathIntegratorRecursive : public FIntegrator
+{
+public:
+    FPathIntegratorRecursive(int maxDepth)
+		: maxDepth(maxDepth)
+	{
+	}
+
+	FColor Li(const FRay& ray, const FScene* scene, FSampler* sampler) const override
+	{
+		return Li(ray, scene, sampler, 0, false);
+	}
+
+protected:
+	FColor Li(const FRay& ray, const FScene* scene, FSampler* sampler, int depth, bool is_prev_specular) const;
+
+protected:
+	int maxDepth;
+
+};
+
+// Path Integrator iteration
+class FPathIntegratorIteration : public FIntegrator
+{
+public:
+	FPathIntegratorIteration(int maxDepth)
+		: maxDepth(maxDepth)
+	{
+	}
+
+	FColor Li(const FRay& ray, const FScene* scene, FSampler* sampler) const override;
+
+protected:
+	int maxDepth;
+
 };
 
 

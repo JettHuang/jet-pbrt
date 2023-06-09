@@ -296,6 +296,13 @@ public:
 			&& p.z >= _min.z && p.z <= _max.z;
 	}
 
+	void CheckThinness(Float thinness = 0.01f)
+	{
+		if (_min.x == _max.x) { _min.x -= thinness; _max.x += thinness; }
+		if (_min.y == _max.y) { _min.y -= thinness; _max.y += thinness; }
+		if (_min.z == _max.z) { _min.z -= thinness; _max.z += thinness; }
+	}
+
 	// return a sphere that hold this bounding box
 	void BoundingSphere(FPoint3& center, Float& radius) const
 	{

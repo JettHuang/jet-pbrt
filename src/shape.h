@@ -229,6 +229,7 @@ public:
         bbox = bbox.Join(position - rb - rt);
         bbox = bbox.Join(position - rb + rt);
 
+		bbox.CheckThinness();
 		return bbox;
 	}
 
@@ -312,6 +313,7 @@ public:
 		FBounds3 bbox(p0, p1);
 		bbox = bbox.Join(p2);
 
+		bbox.CheckThinness();
 		return bbox;
 	}
 
@@ -335,7 +337,7 @@ public:
 };
 
 // load triangles from *.obj file
-bool LoadTriangleMesh(const char* filename, std::vector<std::shared_ptr<FTriangle>> &outTriangles, bool flip_normal = false, bool bFlipHandedness = false);
+bool LoadTriangleMesh(const char* filename, std::vector<std::shared_ptr<FTriangle>> &outTriangles, bool flip_normal = false, bool bFlipHandedness = false, const FVector3& offset=FVector3(0,0,0), Float inScale=1.f);
 
 
 // rectangle
@@ -402,7 +404,10 @@ public:
 
 	FBounds3 CalcWorldBounds() const
 	{
-		return FBounds3(p0, p1).Join(p2).Join(p3);
+		FBounds3 bbox = FBounds3(p0, p1).Join(p2).Join(p3);
+
+		bbox.CheckThinness();
+		return bbox;
 	}
 
 	Float Area() const override { return Cross(p0 - p1, p2 - p1).Length(); }

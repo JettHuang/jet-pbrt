@@ -59,7 +59,7 @@ namespace pbrt
 
 		FColor GetLe(const FIntersection& isect) const
 		{
-			return arealight ? arealight->Le(FLightIntersection(isect.position, isect.normal), isect.wo) : FColor::Black;
+			return arealight ? arealight->L(FLightIntersection(isect.position, isect.normal), isect.wo) : FColor::Black;
 		}
 	};
 

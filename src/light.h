@@ -13,10 +13,10 @@
 namespace pbrt
 {
 
-enum eLightType
+enum eLightFlags
 {
-	PositionLight = 1,   // delta light
-	DirectionLight = 2,  // delta light
+	DeltaPosition = 1,   // delta light
+	DeltaDirection = 2,  // delta light
 
 	AreaLight = 4,
 	InfiniteLight = 8
@@ -24,7 +24,7 @@ enum eLightType
 
 inline bool is_delta_light(int lightFlags)
 {
-	return lightFlags & (eLightType::PositionLight | eLightType::DirectionLight);
+	return lightFlags & (eLightFlags::DeltaPosition | eLightFlags::DeltaDirection);
 }
 
 // light sample
@@ -52,11 +52,13 @@ class FLight
 public:
 	virtual ~FLight() { }
 
-	FLight(const FPoint3& worldpos, int samplesNum=1)
-		: worldPosition(worldpos)
+	FLight(int inFlags, const FPoint3& worldpos, int samplesNum=1)
+		: lightFlags(inFlags)
+		, worldPosition(worldpos)
 		, samplesNum(samplesNum)
 	{}
 
+	int Flags() const { return lightFlags; }
 	virtual bool IsDelta() const = 0;
 	virtual bool IsFinite() const = 0;
 
@@ -70,6 +72,7 @@ public:
 	virtual Float Pdf_Li(const FIntersection& isect, const FVector3& world_wi) const = 0;
 
 protected:
+	int lightFlags;
 	FPoint3	worldPosition;
 	int		samplesNum;
 };
@@ -79,7 +82,7 @@ class FPointLight : public FLight
 {
 public:
 	FPointLight(const FPoint3& worldpos, int samplesNum, const FColor& intensity)
-		: FLight(worldpos, samplesNum)
+		: FLight(eLightFlags::DeltaPosition, worldpos, samplesNum)
 		, intensity(intensity)
 	{}
 
@@ -134,7 +137,7 @@ class FDirectionLight : public FLight
 {
 public:
 	FDirectionLight(const FPoint3& worldpos, int samplesNum, const FColor& irradiance, const FVector3& worlddir)
-		: FLight(worldpos, samplesNum)
+		: FLight(eLightFlags::DeltaDirection, worldpos, samplesNum)
 		, irradiance(irradiance)
 		, worldDir(Normalize(worlddir))
 		, frame(worlddir)
@@ -181,7 +184,7 @@ class FAreaLight : public FLight
 {
 public:
 	FAreaLight(const FPoint3& worldpos, int samplesNum, const FColor& radiance, const FShape* inShape)
-		: FLight(worldpos, samplesNum)
+		: FLight(eLightFlags::AreaLight, worldpos, samplesNum)
 		, radiance(radiance)
 		, shape(inShape)
 	{
@@ -206,7 +209,7 @@ public:
 		else
 		{
 			sample.wi = Normalize(light_isect.position - isect.position);
-			sample.Li = Le(light_isect, -sample.wi);
+			sample.Li = L(light_isect, -sample.wi);
 		}
 
 		return sample;
@@ -228,7 +231,7 @@ public:
 		   -------
 		 light_isect
 	*/
-	FColor Le(const FLightIntersection& light_isect, const FVector3& wo) const
+	FColor L(const FLightIntersection& light_isect, const FVector3& wo) const
 	{
 		Float theta = Dot(light_isect.normal, wo);
 		return (theta > 0.f) ? radiance : FColor::Black;
@@ -246,7 +249,7 @@ class FEnvironmentLight : public FLight
 {
 public:
 	FEnvironmentLight(const FPoint3& worldpos, int samplesNum, const FColor& radiance)
-		: FLight(worldpos, samplesNum)
+		: FLight(eLightFlags::InfiniteLight, worldpos, samplesNum)
 		, radiance(radiance)
 		, worldRadius(0)
 		, area(0)
@@ -259,17 +262,24 @@ public:
 	void Preprocess(const FScene& scene) override;
 	FColor Power() const override { return power; }
 
-	FLightSample Sample_Li(const FIntersection& isect, const FFloat2& random) const override
+	FLightSample Sample_Li(const FIntersection& isect, const FFloat2& uv) const override
 	{
 		FLightSample sample;
-		sample.wi = uniform_sphere_sample(random);
-		sample.pos = isect.position + sample.wi * 2 * worldRadius;
 
-		Float theta = SphericalTheta(sample.wi);
-		Float sin_theta = std::sin(theta);
-		sample.pdf = 1 / (2 * kPi * kPi * sin_theta);
-		if (sin_theta == 0)
-			sample.pdf = 0;
+		// Convert infinite light sample point to direction
+		Float theta = uv[1] * kPi, phi = uv[0] * 2 * kPi;
+		Float cosTheta = std::cos(theta), sinTheta = std::sin(theta);
+		Float sinPhi = std::sin(phi), cosPhi = std::cos(phi);
+
+		sample.wi = FVector3(sinTheta * cosPhi, sinTheta * sinPhi, cosTheta);
+		sample.pos = isect.position + sample.wi * 2 * worldRadius;
+		
+		// Compute PDF for sampled infinite light direction
+		sample.pdf = 0;
+		if (sinTheta != 0)
+		{
+			sample.pdf = 1 / (2 * kPi * kPi * sinTheta);
+		}
 
 		sample.Li = radiance;
 

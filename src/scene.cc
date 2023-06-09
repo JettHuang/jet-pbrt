@@ -46,12 +46,12 @@ void FScene::CalculateWorldBound()
 
 //////////////////////////////////////////////////////////////////////////
 
-std::vector<std::shared_ptr<FShape>> FScene::CreateTriangleMesh(const char* filename, bool flip_normal, bool bFlipHandedness)
+std::vector<std::shared_ptr<FShape>> FScene::CreateTriangleMesh(const char* filename, bool flip_normal, bool bFlipHandedness, const FVector3& offset, Float inScale)
 {
 	std::vector<std::shared_ptr<FTriangle>> mesh;
 	std::vector<std::shared_ptr<FShape>> newshapes;
 
-	if (LoadTriangleMesh(filename, mesh, flip_normal, bFlipHandedness))
+	if (LoadTriangleMesh(filename, mesh, flip_normal, bFlipHandedness, offset, inScale))
 	{
 		for (auto triangle : mesh)
 		{

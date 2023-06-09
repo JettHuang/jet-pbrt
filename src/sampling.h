@@ -72,7 +72,7 @@ inline FVector3 uniform_hemisphere_sample(const FFloat2& uv)
 	return FVector3(radius * std::cos(phi), radius * std::sin(phi), z);
 }
 
-inline Float uniform_hemishere_pdf()
+inline Float uniform_hemisphere_pdf()
 {
 	return kInv2Pi;
 }
