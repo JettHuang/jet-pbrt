@@ -4,7 +4,7 @@
 
 #include "shape.h"
 #include "primitive.h"
-#include "OBJ_Loader.h"
+#include "../external/obj_loader.h"
 
 
 namespace pbrt
@@ -41,6 +41,10 @@ namespace pbrt
 			FVector3 v1 = FVector3(mesh.Vertices[i + 1].Position.X, mesh.Vertices[i + 1].Position.Y, mesh.Vertices[i + 1].Position.Z);
 			FVector3 v2 = FVector3(mesh.Vertices[i + 2].Position.X, mesh.Vertices[i + 2].Position.Y, mesh.Vertices[i + 2].Position.Z);
 
+			FVector2 uv0 = FVector2(mesh.Vertices[i + 0].TextureCoordinate.X, mesh.Vertices[i + 0].TextureCoordinate.Y);
+			FVector2 uv1 = FVector2(mesh.Vertices[i + 1].TextureCoordinate.X, mesh.Vertices[i + 1].TextureCoordinate.Y);
+			FVector2 uv2 = FVector2(mesh.Vertices[i + 2].TextureCoordinate.X, mesh.Vertices[i + 2].TextureCoordinate.Y);
+
 			if (bFlipHandedness)
 			{
 				v0.z = -v0.z;
@@ -55,7 +59,7 @@ namespace pbrt
 			v0 += offset;
 			v1 += offset;
 			v2 += offset;
-			std::shared_ptr<FTriangle> triangle = std::make_shared<FTriangle>(v0, v1, v2, flip_normal);
+			std::shared_ptr<FTriangle> triangle = std::make_shared<FTriangle>(v0, v1, v2, uv0, uv1, uv2, flip_normal);
 
 			outTriangles.push_back(triangle);
 		} // end for i

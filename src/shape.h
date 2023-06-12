@@ -34,6 +34,7 @@ class FIntersection
 public:
 	FPoint3		position; // world position of intersection
 	FNormal3	normal;
+	FPoint2		uv;
 	FVector3	wo;
 
 	const FPrimitive* primitive;
@@ -43,9 +44,10 @@ public:
 		: primitive(nullptr)
 	{}
 
-	FIntersection(const FPoint3 &pos, const FNormal3 &n, const FVector3& wo)
+	FIntersection(const FPoint3 &pos, const FNormal3 &n, const FPoint2& uv, const FVector3& wo)
 		: position(pos)
 		, normal(n)
+		, uv(uv)
 		, wo(wo)
 		, primitive(nullptr)
 	{}
@@ -209,13 +211,28 @@ public:
 			if (Distance(position, hit_point) <= radius)
 			{
 				ray.SetMaxT(distance);
-				oisect = FIntersection(hit_point, normal, -ray.Dir());
+				oisect = FIntersection(hit_point, normal, GetUV(hit_point), -ray.Dir());
 
 				return true;
 			}
 		}
 
 		return false;
+	}
+
+	FPoint2 GetUV(const FPoint3& p) const
+	{
+		FFrame frame(normal);
+		FVector3 v0 = (p - position);	
+		FVector3 v1 = frame.ToLocal(v0);
+
+		Float phi = std::atan2(v1.y, v1.x);
+		if (phi < 0) phi += 2 * kPi;
+
+		Float u = phi / k2Pi;
+		Float v = v0.Length() / radius;
+
+		return FPoint2(u, v);
 	}
 
 	FBounds3 CalcWorldBounds() const
@@ -260,8 +277,9 @@ public:
 class FTriangle : public FShape
 {
 public:
-	FTriangle(const FPoint3 &p0, const FPoint3 &p1, FPoint3 &p2, bool flip_normal = false)
+	FTriangle(const FPoint3 &p0, const FPoint3 &p1, FPoint3 &p2, const FPoint2& uv0, const FPoint2& uv1, const FPoint2& uv2, bool flip_normal = false)
 		: p0(p0), p1(p1), p2(p2)
+		, uv0(uv0), uv1(uv1), uv2(uv2)
 	{
 		normal = Normalize(Cross(p1 - p0, p2 - p0));
 		if (flip_normal)
@@ -299,13 +317,26 @@ public:
 			{
 				ray.SetMaxT(distance);
 				FPoint3 hit_point = ray(distance);
-				oisect = FIntersection(hit_point, normal, -ray.Dir());
+				oisect = FIntersection(hit_point, normal, GetUV(hit_point), -ray.Dir());
 
 				return true;
 			}
 		}
 
 		return false;
+	}
+
+	FPoint2 GetUV(const FVector3& p) const
+	{
+		Float Area2 = Dot((p1 - p0), (p2 - p0));
+		Float A2 = Dot((p - p0), (p1 - p0));
+		Float B2 = Dot((p - p1), (p2 - p1));
+
+		Float e2 = A2 / Area2;
+		Float e0 = B2 / Area2;
+		Float e1 = 1 - e0 - e2;
+
+		return e0 * uv0 + e1 * uv1 + e2 * uv2;
 	}
 
 	FBounds3 CalcWorldBounds() const
@@ -317,7 +348,7 @@ public:
 		return bbox;
 	}
 
-	Float Area() const override { return (Float)0.5 * Cross(p1 - p0, p2 - p0).Length(); }
+	Float Area() const override { return (Float)0.5f * Cross(p1 - p0, p2 - p0).Length(); }
 
 	FLightIntersection SamplePosition(const FFloat2& random, Float* out_pdf) const override
 	{
@@ -333,6 +364,7 @@ public:
 
 public:
 	FPoint3 p0, p1, p2;
+	FPoint2 uv0, uv1, uv2;
 	FNormal3 normal;
 };
 
@@ -393,13 +425,25 @@ public:
 				ray.SetMaxT(distance);
 				FPoint3 hit_point = ray(distance);
 				FNormal3 N = Dot(normal, ray.Dir()) <= 0 ? normal : -normal;
-				oisect = FIntersection(hit_point, N, -ray.Dir());
+				oisect = FIntersection(hit_point, N, GetUV(hit_point), -ray.Dir());
 
 				return true;
 			}
 		}
 
 		return false;
+	}
+
+	FPoint2 GetUV(const FPoint3& p) const
+	{
+		FVector3 V01 = p1 - p0;
+		FVector3 V03 = p3 - p0;
+		FVector3 V0p = p - p0;
+
+		Float u = Dot(V01, V0p) / V01.Length2();
+		Float v = Dot(V03, V0p) / V03.Length2();
+
+		return FPoint2(u, v);
 	}
 
 	FBounds3 CalcWorldBounds() const
@@ -473,12 +517,26 @@ public:
 
 			ray.SetMaxT(time);
 			FPoint3 hit_point = ray(time);
-			oisect = FIntersection(hit_point, (hit_point - center).Normalize(), -ray.Dir());
+			FVector3 N = (hit_point - center).Normalize();
+			FPoint2 uv = GetUV(N);
+			oisect = FIntersection(hit_point, N, uv, -ray.Dir());
 			return true;
 		}
 
 		return false;
     }
+
+	FPoint2 GetUV(const FVector3& p) const
+	{
+		FPoint2 uv;
+
+		auto phi = std::atan2(p.z, p.x);
+		auto theta = asin(p.y);
+		uv.x = 1 - (phi + kPi) / k2Pi;
+		uv.y = (theta + kPiOver2) / kPi;
+
+		return uv;
+	}
 
     FBounds3 CalcWorldBounds() const
     {
