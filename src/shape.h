@@ -34,7 +34,6 @@ class FIntersection
 public:
 	FPoint3		position; // world position of intersection
 	FNormal3	normal;
-	FPoint2		uv;
 	FVector3	wo;
 
 	const FPrimitive* primitive;
@@ -44,10 +43,10 @@ public:
 		: primitive(nullptr)
 	{}
 
-	FIntersection(const FPoint3 &pos, const FNormal3 &n, const FPoint2& uv, const FVector3& wo)
+
+	FIntersection(const FPoint3 &pos, const FNormal3 &n, const FVector3& wo)
 		: position(pos)
 		, normal(n)
-		, uv(uv)
 		, wo(wo)
 		, primitive(nullptr)
 	{}
@@ -211,7 +210,7 @@ public:
 			if (Distance(position, hit_point) <= radius)
 			{
 				ray.SetMaxT(distance);
-				oisect = FIntersection(hit_point, normal, GetUV(hit_point), -ray.Dir());
+				oisect = FIntersection(hit_point, normal, -ray.Dir());
 
 				return true;
 			}
@@ -317,7 +316,7 @@ public:
 			{
 				ray.SetMaxT(distance);
 				FPoint3 hit_point = ray(distance);
-				oisect = FIntersection(hit_point, normal, GetUV(hit_point), -ray.Dir());
+				oisect = FIntersection(hit_point, normal, -ray.Dir());
 
 				return true;
 			}
@@ -425,7 +424,7 @@ public:
 				ray.SetMaxT(distance);
 				FPoint3 hit_point = ray(distance);
 				FNormal3 N = Dot(normal, ray.Dir()) <= 0 ? normal : -normal;
-				oisect = FIntersection(hit_point, N, GetUV(hit_point), -ray.Dir());
+				oisect = FIntersection(hit_point, N, -ray.Dir());
 
 				return true;
 			}
@@ -518,8 +517,7 @@ public:
 			ray.SetMaxT(time);
 			FPoint3 hit_point = ray(time);
 			FVector3 N = (hit_point - center).Normalize();
-			FPoint2 uv = GetUV(N);
-			oisect = FIntersection(hit_point, N, uv, -ray.Dir());
+			oisect = FIntersection(hit_point, N, -ray.Dir());
 			return true;
 		}
 
