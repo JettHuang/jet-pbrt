@@ -99,7 +99,6 @@ void FIntegrator::DoRender(const FScene* scene, FSampler* sampler, FFilmView* fi
 			{
 				auto camera_sample = sampler->GetCameraSample(FPoint2((Float)x, (Float)y));
 				FRay ray = pCamera->GenerateRay(camera_sample);
-
 				FColor dL = Li(ray, scene, sampler) * ratio;
 
 				PBRT_DOCHECK(dL.IsValid());
@@ -133,7 +132,7 @@ FColor FWhittedIntegrator::Li(const FRay& ray, const FScene* scene, FSampler* sa
 	const FNormal3& N = isect.normal;
 
 	// Compute scattering function for surface interaction
-	std::unique_ptr<FBSDF> bsdfptr = isect.Bsdf();
+	std::unique_ptr<FBSDF> bsdfptr = isect.Bsdf(sampler);
 	if (!bsdfptr) {
 		return Li(isect.SpawnRay(ray.Dir()), scene, sampler, depth);
 	}
@@ -179,6 +178,10 @@ FColor FWhittedIntegrator::SpecularReflect(const FRay& ray, const FIntersection&
 	}
 
 	FBSDFSample bsdfsample = bsdfptr->Sample(isect.wo, sampler->GetFloat2());
+	if (bsdfsample.f.IsBlack() || bsdfsample.pdf == 0.f)
+	{
+		return FColor::Black;
+	}
 	return bsdfsample.f * Li(isect.SpawnRay(bsdfsample.wi), scene, sampler, depth + 1) * AbsDot(bsdfsample.wi, isect.normal) / bsdfsample.pdf;
 }
 
@@ -192,6 +195,10 @@ FColor FWhittedIntegrator::SpecularTransmit(const FRay& ray, const FIntersection
 	}
 
 	FBSDFSample bsdfsample = bsdfptr->Sample(isect.wo, sampler->GetFloat2());
+	if (bsdfsample.f.IsBlack() || bsdfsample.pdf == 0.f)
+	{
+		return FColor::Black;
+	}
 	return bsdfsample.f * Li(isect.SpawnRay(bsdfsample.wi), scene, sampler, depth + 1) * AbsDot(bsdfsample.wi, isect.normal) / bsdfsample.pdf;
 }
 
@@ -205,6 +212,10 @@ FColor FWhittedIntegrator::SpecularReflectAndTransmit(const FRay& ray, const FIn
 	}
 
 	FBSDFSample bsdfsample = bsdfptr->Sample(isect.wo, sampler->GetFloat2());
+	if (bsdfsample.f.IsBlack() ||  bsdfsample.pdf == 0.f)
+	{
+		return FColor::Black;
+	}
 	return bsdfsample.f * Li(isect.SpawnRay(bsdfsample.wi), scene, sampler, depth + 1) * AbsDot(bsdfsample.wi, isect.normal) / bsdfsample.pdf;
 }
 
@@ -246,7 +257,7 @@ FColor FPathIntegratorRecursive::Li(const FRay& ray, const FScene* scene, FSampl
 	const FNormal3& N = isect.normal;
 
 	// Compute scattering function for surface interaction
-	std::unique_ptr<FBSDF> bsdfptr = isect.Bsdf();
+	std::unique_ptr<FBSDF> bsdfptr = isect.Bsdf(sampler);
 	if (!bsdfptr) {
 		return Li(isect.SpawnRay(ray.Dir()), scene, sampler, depth, is_prev_specular);
 	}
@@ -334,7 +345,7 @@ FColor FPathIntegratorIteration::Li(const FRay& inRay, const FScene* scene, FSam
 		const FNormal3& N = isect.normal;
 
 		// Compute scattering function for surface interaction
-		std::unique_ptr<FBSDF> bsdfptr = isect.Bsdf();
+		std::unique_ptr<FBSDF> bsdfptr = isect.Bsdf(sampler);
 		if (!bsdfptr) {
 			ray = isect.SpawnRay(ray.Dir());
 			--bounces;

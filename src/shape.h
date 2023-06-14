@@ -16,6 +16,7 @@ class FPrimitive;
 class FAreaLight;
 class FMaterial;
 class FBSDF;
+class FSampler;
 
 /*
   prev   n   light
@@ -53,7 +54,7 @@ public:
 
 	const FPrimitive* Primitive() const { return primitive; }
 
-	std::unique_ptr<FBSDF> Bsdf() const;
+	std::unique_ptr<FBSDF> Bsdf(FSampler* sampler) const;
 	FColor Le() const;
 
 	// spawn a new ray start from this intersection to the direction

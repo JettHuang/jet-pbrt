@@ -20,7 +20,7 @@ class FMaterial
 public:
 	virtual ~FMaterial() {}
 
-	virtual std::unique_ptr<FBSDF> Scattering(const FIntersection& isect) const = 0;
+	virtual std::unique_ptr<FBSDF> Scattering(const FIntersection& isect, FSampler* sampler) const = 0;
 };
 
 // matte material
@@ -31,7 +31,7 @@ public:
 		: diffuseColor(diffuseColor)
 	{}
 
-	std::unique_ptr<FBSDF> Scattering(const FIntersection& isect) const override
+	std::unique_ptr<FBSDF> Scattering(const FIntersection& isect, FSampler* sampler) const override
 	{
 		return std::make_unique<FLambertionReflection>(FFrame(isect.normal), diffuseColor);
 	}
@@ -49,7 +49,7 @@ public:
 		: specularColor(specularColor)
 	{}
 
-	std::unique_ptr<FBSDF> Scattering(const FIntersection& isect) const override
+	std::unique_ptr<FBSDF> Scattering(const FIntersection& isect, FSampler* sampler) const override
 	{
 		return std::make_unique<FSpecularReflection>(FFrame(isect.normal), specularColor);
 	}
@@ -69,7 +69,7 @@ public:
 		, Kt(transmission)
 	{}
 
-	std::unique_ptr<FBSDF> Scattering(const FIntersection& isect) const override
+	std::unique_ptr<FBSDF> Scattering(const FIntersection& isect, FSampler* sampler) const override
 	{
 		return std::make_unique<FFresnelSpecular>(FFrame(isect.normal), (Float)1, eta, Kr, Kt);
 	}
@@ -85,43 +85,57 @@ protected:
 class FPlasticMaterial : public FMaterial
 {
 public:
-	FPlasticMaterial(const FColor& diffuse, const FColor& specular, Float shininess)
-		: diffuseColor(diffuse)
-		, specularColor(specular)
-		, exponent(shininess)
-		, diffuse_probility(1)
-		, specular_probility(0)
+	FPlasticMaterial(const FColor& Kd, const FColor& Ks, Float roughness, bool remapRoughness)
+		: Kd(Kd)
+		, Ks(Ks)
+		, roughness(roughness)
+		, remapRoughness(remapRoughness)
 	{
-		Float diffuselum = diffuseColor.Luminance();
-		Float specularlum = specularColor.Luminance();
-		Float luminance = diffuselum + specularlum;
+		Float Ld = Kd.Luminance();
+		Float Ls = Ks.Luminance();
+		Float L = Ld + Ls;
 	
-		diffuse_probility = diffuselum / luminance;
-		specular_probility = specularlum / luminance;
+		Qd = Ld / L;
 	}
 
-	std::unique_ptr<FBSDF> Scattering(const FIntersection& isect) const override
-	{
-		float_t random = rng.uniform_float();
-		if (random < specular_probility)
-		{
-			return std::make_unique<FPhongSpecularReflection>(FFrame(isect.normal), specularColor / specular_probility, exponent);
-		}
-		else
-		{
-			return std::make_unique<FLambertionReflection>(FFrame(isect.normal), diffuseColor / diffuse_probility);
-		}
-	}
+	std::unique_ptr<FBSDF> Scattering(const FIntersection& isect, FSampler* sampler) const override;
 
 protected:
-	FColor diffuseColor;
-	FColor specularColor;
-	Float exponent;
+	FColor Kd;
+	FColor Ks;
+	Float roughness;
+	const bool remapRoughness;
 
-	Float diffuse_probility;
-	Float specular_probility;
-	
-	mutable FRNG rng;
+	Float Qd;
 };
+
+// metal
+class FMetalMaterial : public FMaterial
+{
+public:
+	FMetalMaterial(const FColor& eta,
+		const FColor& k,
+		Float uRoughness,
+		Float vRoughness,
+		bool remapRoughness)
+		: eta(eta)
+		, k(k)
+		, uRoughness(uRoughness)
+		, vRoughness(vRoughness)
+		, remapRoughness(remapRoughness)
+	{
+	}
+
+	std::unique_ptr<FBSDF> Scattering(const FIntersection& isect, FSampler* sampler) const override;
+
+protected:
+	const FColor eta;
+	const FColor k;
+	Float uRoughness;
+	Float vRoughness;
+	bool remapRoughness;
+};
+
+
 
 } // namespace pbrt

@@ -9,9 +9,9 @@
 
 namespace pbrt
 {
-	std::unique_ptr<FBSDF> FIntersection::Bsdf() const
+	std::unique_ptr<FBSDF> FIntersection::Bsdf(FSampler *sampler) const
 	{
-		return primitive ? primitive->GetBsdf(*this) : nullptr;
+		return primitive ? primitive->GetBsdf(*this, sampler) : nullptr;
 	}
 
 	FColor FIntersection::Le() const

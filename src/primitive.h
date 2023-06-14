@@ -52,9 +52,9 @@ namespace pbrt
 			return shape->WorldBounds();
 		}
 
-		std::unique_ptr<FBSDF> GetBsdf(const FIntersection& isect) const
+		std::unique_ptr<FBSDF> GetBsdf(const FIntersection& isect, FSampler* sampler) const
 		{
-			return material ? material->Scattering(isect) : nullptr;
+			return material ? material->Scattering(isect, sampler) : nullptr;
 		}
 
 		FColor GetLe(const FIntersection& isect) const

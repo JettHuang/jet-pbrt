@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <climits>
+#include <cassert>
 #include <iosfwd>
 #include <iostream>
 #include <fstream>
@@ -28,7 +29,7 @@ namespace pbrt
 
 #define PBRT_PRINT(fmt, ...)		log_print(fmt, __VA_ARGS__)
 #define PBRT_ERROR(fmt, ...)		log_print(fmt, __VA_ARGS__)
-#define PBRT_DOCHECK(x)			{ if(!(x)) { PBRT_PRINT("PBRT_DOCHECK(%s) failed at %s:%d\n", #x, __FILE__, __LINE__); } }
+#define PBRT_DOCHECK(x)			{ assert(x); if(!(x)) { PBRT_PRINT("PBRT_DOCHECK(%s) failed at %s:%d\n", #x, __FILE__, __LINE__); } }
 
 void log_print(const char* fmt, ...);
 

@@ -15,9 +15,49 @@ namespace pbrt
 // the functions below are based on local shading coordinate
 
 inline Float cos_theta(const FVector3& w) { return w.z; }
+inline Float Cos2Theta(const FVector3& w) { return w.z * w.z; }
 inline Float abs_cos_theta(const FVector3& w) { return std::abs(w.z); }
 
 inline bool same_hemisphere(const FVector3& w, const FVector3& wp) { return w.z * wp.z > 0; }
+
+inline FVector3 face_forward(const FVector3& v, const FVector3& v2)
+{
+	return (Dot(v, v2) < 0) ? -v : v;
+}
+
+inline Float Sin2Theta(const FVector3& w) {
+	return std::max((Float)0, (Float)1 - Cos2Theta(w));
+}
+
+inline Float SinTheta(const FVector3& w) { return std::sqrt(Sin2Theta(w)); }
+
+inline Float TanTheta(const FVector3& w) { return SinTheta(w) / cos_theta(w); }
+
+inline Float Tan2Theta(const FVector3& w) {
+	return Sin2Theta(w) / Cos2Theta(w);
+}
+
+inline Float CosPhi(const FVector3& w) {
+	Float sinTheta = SinTheta(w);
+	return (sinTheta == 0) ? 1 : Clamp(w.x / sinTheta, (Float)-1, (Float)1);
+}
+
+inline Float SinPhi(const FVector3& w) {
+	Float sinTheta = SinTheta(w);
+	return (sinTheta == 0) ? 0 : Clamp(w.y / sinTheta, (Float)-1, (Float)1);
+}
+
+inline Float Cos2Phi(const FVector3& w) { return CosPhi(w) * CosPhi(w); }
+
+inline Float Sin2Phi(const FVector3& w) { return SinPhi(w) * SinPhi(w); }
+
+inline Float CosDPhi(const FVector3& wa, const FVector3& wb) {
+	Float waxy = wa.x * wa.x + wa.y * wa.y;
+	Float wbxy = wb.x * wb.x + wb.y * wb.y;
+	if (waxy == 0 || wbxy == 0)
+		return 1;
+	return Clamp((wa.x * wb.x + wa.y * wb.y) / std::sqrt(waxy * wbxy), (Float)-1, (Float)1);
+}
 
 inline FVector3 reflect(const FVector3& wo, const FNormal3& normal)
 {
@@ -130,6 +170,33 @@ inline Float fresnel_dielectric_schlick(Float cos_theta_i, Float F0)
 }
 
 
+// https://seblagarde.wordpress.com/2013/04/29/memo-on-fresnel-equations/
+inline FColor fresnel_conductor(Float cosThetaI, const FColor& etai,
+	const FColor& etat, const FColor& k) {
+	cosThetaI = Clamp(cosThetaI, (Float)-1, (Float)1);
+	FColor eta = etat / etai;
+	FColor etak = k / etai;
+
+	Float cosThetaI2 = cosThetaI * cosThetaI;
+	Float sinThetaI2 = 1 - cosThetaI2;
+	FColor eta2 = eta * eta;
+	FColor etak2 = etak * etak;
+
+	FColor t0 = eta2 - etak2 - FColor(sinThetaI2);
+	FColor a2plusb2 = (t0 * t0 + 4 * eta2 * etak2).Sqrt();
+	FColor t1 = a2plusb2 + cosThetaI2;
+	FColor a = (0.5f * (a2plusb2 + t0)).Sqrt();
+	FColor t2 = (Float)2 * cosThetaI * a;
+	FColor Rs = (t1 - t2) / (t1 + t2);
+
+	FColor t3 = cosThetaI2 * a2plusb2 + sinThetaI2 * sinThetaI2;
+	FColor t4 = t2 * sinThetaI2;
+	FColor Rp = Rs * (t3 - t4) / (t3 + t4);
+
+	return 0.5f * (Rp + Rs);
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 /*
    reference:
@@ -190,7 +257,8 @@ struct FBSDFSample
 	int		 ebsdf; // bsdf flags
 
 	FBSDFSample()
-		: wi(0, 0, 1)
+		: f(0)
+		, wi(0, 0, 1)
 		, pdf(0)
 		, ebsdf(0)
 	{}
@@ -523,7 +591,6 @@ public:
 	{
 		FBSDFSample sample;
 
-		// TODO
 		sample.wi = cosine_hemisphere_sample_phong(random);
 
 		const FVector3 wr = reflect(wo, FVector3(0, 0, 1));
@@ -565,6 +632,102 @@ private:
 	Float exponent;
 };
 
+//////////////////////////////////////////////////////////////////////////
+// Fresnel
+class Fresnel {
+public:
+	// Fresnel Interface
+	virtual ~Fresnel();
+	virtual FColor Evaluate(Float cosI) const = 0;
+};
 
+class FresnelConductor : public Fresnel {
+public:
+	// FresnelConductor Public Methods
+	FColor Evaluate(Float cosThetaI) const;
+	FresnelConductor(const FColor& etaI, const FColor& etaT,
+		const FColor& k)
+		: etaI(etaI), etaT(etaT), k(k) {}
+
+private:
+	FColor etaI, etaT, k;
+};
+
+class FresnelDielectric : public Fresnel {
+public:
+	// FresnelDielectric Public Methods
+	FColor Evaluate(Float cosThetaI) const;
+	FresnelDielectric(Float etaI, Float etaT) : etaI(etaI), etaT(etaT) {}
+
+private:
+	Float etaI, etaT;
+};
+
+class FresnelNoOp : public Fresnel {
+public:
+	FColor Evaluate(Float) const { return FColor(1); }
+};
+
+
+//////////////////////////////////////////////////////////////////////////
+// Micro facet model
+class MicrofacetDistribution;
+
+class FMicrofacetReflection : public FBSDF
+{
+public:
+	FMicrofacetReflection(const FFrame& frame, const FColor& R, MicrofacetDistribution* distribution, Fresnel* fresnel)
+		: FBSDF(frame, eBSDFType::Reflection | eBSDFType::Glossy)
+		, R(R)
+		, distribution(distribution)
+		, fresnel(fresnel)
+	{
+
+	}
+
+	~FMicrofacetReflection();
+
+	bool IsDelta() const override { return false; }
+
+	FColor Evalf_Local(const FVector3& wo, const FVector3& wi) const override;
+	Float Pdf_Local(const FVector3& wo, const FVector3& wi) const override;
+
+	FBSDFSample Sample_Local(const FVector3& wo, const FFloat2& random) const override;
+
+protected:
+	const FColor R;
+	const MicrofacetDistribution* distribution;
+	const Fresnel* fresnel;
+};
+
+class FMicrofacetTransmission : public FBSDF {
+public:
+	// MicrofacetTransmission Public Methods
+	FMicrofacetTransmission(const FFrame& frame, const FColor& T,
+		MicrofacetDistribution* distribution, Float etaA, Float etaB)
+		: FBSDF(frame, eBSDFType::Transmission | eBSDFType::Glossy)
+		, T(T)
+		, distribution(distribution)
+		, etaA(etaA)
+		, etaB(etaB)
+		, fresnel(etaA, etaB)
+	{}
+
+	~FMicrofacetTransmission();
+
+	bool IsDelta() const override { return false; }
+
+	FColor Evalf_Local(const FVector3& wo, const FVector3& wi) const override;
+	Float Pdf_Local(const FVector3& wo, const FVector3& wi) const override;
+
+	FBSDFSample Sample_Local(const FVector3& wo, const FFloat2& random) const override;
+
+private:
+	// MicrofacetTransmission Private Data
+	const FColor T;
+	const MicrofacetDistribution* distribution;
+	const Float etaA, etaB;
+	const FresnelDielectric fresnel;
+};
 
 } // namespace pbrt

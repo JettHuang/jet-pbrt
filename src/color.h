@@ -16,6 +16,7 @@ public:
 	Float  r, g, b;
 
 	FColor() : r(0), g(0), b(0) {}
+	FColor(Float v) : r(v), g(v), b(v) {}
 	FColor(Float rr, Float gg, Float bb) : r(rr), g(gg), b(bb) {}
 
 	FColor operator* (Float s) const { return FColor(r * s, g * s, b * s); }
@@ -25,10 +26,18 @@ public:
 	FColor& operator/= (Float s) { r /= s; g /= s; b /= s; return *this; }
 
 	FColor operator+ (const FColor& c) const { return FColor(r + c.r, g + c.g, b + c.b); }
+	FColor operator- (const FColor& c) const { return FColor(r - c.r, g - c.g, b - c.b); }
 	FColor operator* (const FColor& c) const { return FColor(r * c.r, g * c.g, b * c.b); }
 
 	FColor& operator+= (const FColor& c) { r += c.r; g += c.g; b += c.b; return *this; }
 	FColor& operator*= (const FColor& c) { r *= c.r; g *= c.g; b *= c.b; return *this; }
+
+	FColor operator/ (const FColor& rhs) const { return FColor(r / rhs.r, g / rhs.g, b / rhs.b); }
+
+	FColor Sqrt() const 
+	{
+		return FColor(std::sqrt(r), std::sqrt(g), std::sqrt(b));
+	}
 
 	Float MaxComponentValue() const
 	{
@@ -47,6 +56,11 @@ public:
 	{
 		os << "{" << clr.r << "," << clr.g << "," << clr.b << "}";
 		return os;
+	}
+
+	friend FColor operator* (Float s, const FColor& c)
+	{
+		return c * s;
 	}
 
 	static FColor Zero;
