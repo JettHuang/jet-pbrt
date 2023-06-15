@@ -53,6 +53,10 @@ std::shared_ptr<FScene> create_cornellbox_scene(const FVector2& filmsize)
 	std::vector<std::shared_ptr<FShape>> right = scene->CreateTriangleMesh("scene\\cornellbox\\right.obj", true, true);
 	scene->CreatePrimitives(right, green);
 
+	std::shared_ptr<FMaterial> glass_mat = scene->CreateMaterial<FGlassMaterial>(1.5f, FColor(0.98f), FColor(0.98f));
+	std::shared_ptr<FShape> bunny_04 = scene->CreateShape<FSphere>(FVector3(273, 273, 150), 60.f);
+	// scene->CreatePrimitive(bunny_04.get(), glass_mat.get(), nullptr);
+
 	scene->Preprocess();
 	return scene;
 }
@@ -64,18 +68,23 @@ std::shared_ptr<FScene> create_bunny_scene(const FVector2& filmsize)
 	const FVector3 vup(0, 1, 0);
 	const Float vfov = 60.0;
 
-	std::shared_ptr<FScene> scene = std::make_shared<FScene>("bunny_scene_v3");
+	std::shared_ptr<FScene> scene = std::make_shared<FScene>("bunny_scene");
 
 	scene->CreateCamera<FCamera>(lookfrom, Normalize(lookat - lookfrom), vup, vfov, filmsize);
 
-	const FColor backgroundclr(0.6f, 0.6f, 0.9f);
+	const FColor backgroundclr(0.1f, 0.1f, 0.5f);
 	scene->CreateLight<FEnvironmentLight>(FPoint3(0, 0, 0), 1, backgroundclr);
 
 	std::shared_ptr<FMaterial> red = scene->CreateMaterial<FMatteMaterial>(FColor(0.63f, 0.065f, 0.05f));
 	std::shared_ptr<FMaterial> green = scene->CreateMaterial<FMatteMaterial>(FColor(0.14f, 0.45f, 0.091f));
 	std::shared_ptr<FMaterial> white = scene->CreateMaterial<FMatteMaterial>(FColor(0.725f, 0.71f, 0.68f));
 	
-	scene->CreateLight<FPointLight>(FVector3(-200, 400, -200), 1, FColor(630000.f, 650000.f, 650000.f));
+	// scene->CreateLight<FPointLight>(FVector3(-200, 400, -200), 1, FColor(630000.f, 650000.f, 650000.f));
+	// light
+	std::shared_ptr<FMaterial> mat_light0 = scene->CreateMaterial<FMatteMaterial>(FColor(0.65f, 0.65f, 0.65f));
+	std::shared_ptr<FShape> shape_light0 = scene->CreateShape<FRectangle>(FRectangle::FromXZ(-100, 100, -100, 100, 350, true));
+	const FColor radiance(8.0f * FVector3(0.747f + 0.058f, 0.747f + 0.258f, 0.747f) + 15.6f * FVector3(0.740f + 0.287f, 0.740f + 0.160f, 0.740f) + 18.4f * FVector3(0.737f + 0.642f, 0.737f + 0.159f, 0.737f));
+	scene->CreateAreaLight(1, radiance, shape_light0, mat_light0);
 
 	// floor
 	std::shared_ptr<FShape> floor = scene->CreateShape<FRectangle>(FRectangle::FromXZ(-200, 200, -200, 200, 0));
@@ -85,9 +94,9 @@ std::shared_ptr<FScene> create_bunny_scene(const FVector2& filmsize)
 	std::vector<std::shared_ptr<FShape>> bunny_01 = scene->CreateTriangleMesh("scene\\bunny\\bunny.obj", true, true, FVector3(0,0,0), 500.f);
 	scene->CreatePrimitives(bunny_01, red);
 
-	//std::shared_ptr<FMaterial> plastic_white = scene->CreateMaterial<FPlasticMaterial>(FColor(0.35f, 0.12f, 0.48f), FColor(1) - FColor(0.35f, 0.12f, 0.48f), 0.1f, false);
-	//std::vector<std::shared_ptr<FShape>> bunny_02 = scene->CreateTriangleMesh("scene\\bunny\\bunny.obj", true, true, FVector3(100, 0, 0), 500.f);
-	//scene->CreatePrimitives(bunny_02, plastic_white);
+	std::shared_ptr<FMaterial> plastic_white = scene->CreateMaterial<FPlasticMaterial>(FColor(0.35f, 0.12f, 0.48f), FColor(1) - FColor(0.35f, 0.12f, 0.48f), 0.1f, false);
+	std::vector<std::shared_ptr<FShape>> bunny_02 = scene->CreateTriangleMesh("scene\\bunny\\bunny.obj", true, true, FVector3(-100, 0, -100), 500.f);
+	scene->CreatePrimitives(bunny_02, plastic_white);
 
 	std::shared_ptr<FMaterial> golden_mat = scene->CreateMaterial<FMetalMaterial>(FColor(0.18f, 0.15f, 0.81f), FColor(0.11f, 0.11f, 0.11f), 0.2f, 0.2f, false);
 	std::vector<std::shared_ptr<FShape>> bunny_03 = scene->CreateTriangleMesh("scene\\bunny\\bunny.obj", true, true, FVector3(0, 0, -100), 500.f);
@@ -101,14 +110,42 @@ std::shared_ptr<FScene> create_bunny_scene(const FVector2& filmsize)
 	return scene;
 }
 
-int main(int argc, char* agrv[])
+int main(int argc, char* argv[])
 {
-	const int width = 600, height = 600;
+	const int width = 1024, height = 1024;
 	FFilm film(width, height);
 
-	std::shared_ptr<FScene> scene = create_cornellbox_scene(film.GetResolution());
+	std::shared_ptr<FScene> scene = nullptr;
+	int samples_per_pixel = 50;
 
-	int samples_per_pixel = 500;
+	PBRT_PRINT("pbrt.exe  sceneid   spp\n");
+	if (argc < 2)
+	{
+		return 0;
+	}
+
+	int sceneId = atoi(argv[1]);
+	switch (sceneId)
+	{
+	case 0:
+		scene = create_cornellbox_scene(film.GetResolution()); break;
+	case 1:
+		scene = create_bunny_scene(film.GetResolution()); break;
+	default:
+		return 0;
+		break;
+	}
+
+	PBRT_PRINT("current scene: %s\n", scene->NameStr());
+	if (argc > 2)
+	{
+		int spp = atoi(argv[2]);
+		if (spp > 0)
+		{
+			samples_per_pixel = spp;
+		}
+	}
+	
 	std::shared_ptr<FSampler> sampler = std::make_shared<FRandomSampler>(samples_per_pixel);
 
 	//FDebugIntegrator integrator;
@@ -118,7 +155,9 @@ int main(int argc, char* agrv[])
 
 	integrator.Render(scene.get(), sampler.get(), &film, 16);
 
-	film.SaveAsImage(scene->NameStr(), EImageType::BMP);
+	char fullname[256];
+	sprintf(fullname, "%s_%d", scene->NameStr(), samples_per_pixel);
+	film.SaveAsImage(fullname, EImageType::BMP);
 
 	return 0;
 }
